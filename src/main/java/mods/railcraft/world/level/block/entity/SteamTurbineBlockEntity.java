@@ -151,6 +151,7 @@ public class SteamTurbineBlockEntity extends MultiblockBlockEntity<SteamTurbineB
         .map(SteamTurbineBlockEntity::getSteamTurbineModule);
     return masterModule
         .map(SteamTurbineModule::getEnergyStorage)
+        .map(OutputOnlyEnergyStorage::new)
         .orElse(null);
   }
 
@@ -190,5 +191,49 @@ public class SteamTurbineBlockEntity extends MultiblockBlockEntity<SteamTurbineB
             .setValue(SteamTurbineBlock.TYPE, type)
             .setValue(SteamTurbineBlock.ROTATED,
                 membership.master().getCurrentPattern().get() == rotatedPattern));
+  }
+
+  /**
+   * The steam turbine only generates energy, so its energy capability must never accept input.
+   * Without this, adjacent energy networks keep the turbine's small internal buffer topped up,
+   * which blocks generation entirely.
+   */
+  private static final class OutputOnlyEnergyStorage implements IEnergyStorage {
+
+    private final IEnergyStorage delegate;
+
+    private OutputOnlyEnergyStorage(IEnergyStorage delegate) {
+      this.delegate = delegate;
+    }
+
+    @Override
+    public int receiveEnergy(int maxReceive, boolean simulate) {
+      return 0;
+    }
+
+    @Override
+    public int extractEnergy(int maxExtract, boolean simulate) {
+      return this.delegate.extractEnergy(maxExtract, simulate);
+    }
+
+    @Override
+    public int getEnergyStored() {
+      return this.delegate.getEnergyStored();
+    }
+
+    @Override
+    public int getMaxEnergyStored() {
+      return this.delegate.getMaxEnergyStored();
+    }
+
+    @Override
+    public boolean canExtract() {
+      return this.delegate.canExtract();
+    }
+
+    @Override
+    public boolean canReceive() {
+      return false;
+    }
   }
 }
